@@ -1,0 +1,87 @@
+@import "./assets/css/bootstrap.min.css";
+@import "ngx-toastr/toastr";
+@import "@angular/material/prebuilt-themes/pink-bluegrey.css";
+@import "./assets/css/roboto.css";
+
+body {
+  background-color: #202124;
+  color: white;
+}
+
+.help-modal__container {
+  .help-modal {
+    background-color: #202124 !important;
+
+    .item {
+      background-color: #202124 !important;
+
+      .key {
+        background-color: #202124 !important;
+      }
+
+      .description {
+        color: white !important;
+      }
+    }
+  }
+}
+
+.modal-content {
+  border-radius: 22px !important;
+  background-color: #292b2c;
+}
+
+.selectable {
+  user-select: auto;
+}
+
+p {
+  margin-bottom: 0;
+  margin-top: 0;
+}
+
+.bs-col-padding {
+  padding-left: 1rem !important;
+}
+
+html,
+body {
+  height: fit-content;
+  user-select: none;
+}
+
+:root {
+  /* Default to 0px for desktop */
+  --safe-top: 0px;
+}
+
+/* On Android/iOS, this env variable is populated by the WebView */
+@supports (padding-top: env(safe-area-inset-top)) {
+  :root {
+    --safe-top: env(safe-area-inset-top);
+  }
+}
+
+/* Fallback for devices where env() isn't supported */
+@media screen and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  :root {
+    --safe-top: max(var(--safe-top), 36px);
+  }
+}
+
+body {
+  margin: 0;
+  font-family: "Roboto", sans-serif;
+  padding-top: var(--safe-top);
+}
+
+/* Fix touch issues on Android WebView */
+input, button, select, textarea {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Force input change detection on Android */
+input {
+  -webkit-user-modify: read-write-plaintext-only;
+}
