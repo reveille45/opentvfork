@@ -62,10 +62,11 @@ body {
   }
 }
 
-/* Fallback for devices where env() isn't supported */
+/* Fallback for devices where env() isn't supported or returns 0 */
 @media screen and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
   :root {
-    --safe-top: max(var(--safe-top), 36px);
+    /* Increased to 50px to clear larger notches on modern Android devices */
+    --safe-top: max(var(--safe-top), 50px);
   }
 }
 

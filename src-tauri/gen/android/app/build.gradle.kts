@@ -37,6 +37,8 @@ android {
             }
         }
         getByName("release") {
+            // Enable cleartext traffic for HTTP IPTV streams
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
             isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
