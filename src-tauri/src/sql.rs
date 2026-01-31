@@ -32,12 +32,21 @@ fn create_connection_pool() -> Pool<SqliteConnectionManager> {
 }
 
 fn get_and_create_sqlite_db_path() -> String {
-    let mut path = ProjectDirs::from("dev", "fredol", "open-tv")
-        .unwrap()
-        .data_dir()
-        .to_owned();
+    // On Android, ProjectDirs::from() returns None, so we need a fallback
+    let mut path = if cfg!(target_os = "android") {
+        // Android: use the app's internal data directory
+        // This path is typically /data/data/<package>/files/
+        std::path::PathBuf::from("/data/data/dev.fredol.open_tv/files")
+    } else {
+        // Desktop: use the standard directories crate
+        ProjectDirs::from("dev", "fredol", "open-tv")
+            .expect("Failed to get project directories")
+            .data_dir()
+            .to_owned()
+    };
+
     if !path.exists() {
-        std::fs::create_dir_all(&path).unwrap();
+        std::fs::create_dir_all(&path).expect("Failed to create data directory");
     }
     path.push(DB_NAME);
     return path.to_string_lossy().to_string();

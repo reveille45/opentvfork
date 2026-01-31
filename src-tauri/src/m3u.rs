@@ -192,10 +192,15 @@ pub async fn get_m3u8_from_link(source: Source, wipe: bool) -> Result<()> {
 }
 
 fn get_tmp_path() -> String {
-    let mut path = directories::ProjectDirs::from("dev", "fredol", "open-tv")
-        .unwrap()
-        .cache_dir()
-        .to_owned();
+    // On Android, ProjectDirs::from() returns None, so we need a fallback
+    let mut path = if cfg!(target_os = "android") {
+        std::path::PathBuf::from("/data/data/dev.fredol.open_tv/cache")
+    } else {
+        directories::ProjectDirs::from("dev", "fredol", "open-tv")
+            .unwrap()
+            .cache_dir()
+            .to_owned()
+    };
     if !path.exists() {
         std::fs::create_dir_all(&path).unwrap();
     }

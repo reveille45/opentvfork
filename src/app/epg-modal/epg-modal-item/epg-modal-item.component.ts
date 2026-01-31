@@ -86,16 +86,34 @@ export class EpgModalItemComponent implements OnDestroy {
       favorite: false,
     };
     try {
-      await invoke("play", {
-        channel: channel,
-        record: false,
-      });
+      // Check if we're on Android and have the native video player interface
+      if (this.isAndroidWithVideoPlayer()) {
+        // Use Android's native video player with chooser
+        (window as any).AndroidVideoPlayer.openVideo(
+          channel.url,
+          channel.name || "Video"
+        );
+      } else {
+        // Use MPV on desktop
+        await invoke("play", {
+          channel: channel,
+          record: false,
+        });
+      }
     } catch (e) {
       console.error(e);
       this.error.handleError(e);
     } finally {
       this.playing = false;
     }
+  }
+
+  /**
+   * Check if we're running on Android with the native video player interface available
+   */
+  private isAndroidWithVideoPlayer(): boolean {
+    return typeof (window as any).AndroidVideoPlayer !== "undefined" &&
+           typeof (window as any).AndroidVideoPlayer.openVideo === "function";
   }
 
   downloading() {

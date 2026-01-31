@@ -18,12 +18,14 @@ use tokio::{
 };
 
 use crate::{
-    mpv,
     settings::get_settings,
     sql,
     types::{AppState, Channel, CustomChannel, NetworkInfo},
     utils::{get_bin, serialize_to_file},
 };
+
+#[cfg(not(target_os = "android"))]
+use crate::mpv;
 
 const WAN_IP_API: &str = "https://api.ipify.org";
 const FFMPEG_BIN_NAME: &str = "ffmpeg";
@@ -141,10 +143,15 @@ fn get_playlist_dir(mut folder: PathBuf) -> String {
 }
 
 fn get_restream_folder() -> Result<PathBuf> {
-    let mut path = directories::ProjectDirs::from("dev", "fredol", "open-tv")
-        .context("can't find project folder")?
-        .cache_dir()
-        .to_owned();
+    // On Android, ProjectDirs::from() returns None, so we need a fallback
+    let mut path = if cfg!(target_os = "android") {
+        PathBuf::from("/data/data/dev.fredol.open_tv/cache")
+    } else {
+        directories::ProjectDirs::from("dev", "fredol", "open-tv")
+            .context("can't find project folder")?
+            .cache_dir()
+            .to_owned()
+    };
     path.push("restream");
     if !path.exists() {
         std::fs::create_dir_all(&path).unwrap();
@@ -158,6 +165,8 @@ async fn delete_old_segments(dir: &Path) -> Result<()> {
     Ok(())
 }
 
+// watch_self is desktop-only since it uses MPV
+#[cfg(not(target_os = "android"))]
 pub async fn watch_self(port: u16, state: State<'_, Mutex<AppState>>) -> Result<()> {
     let channel = Channel {
         url: Some(format!("http://127.0.0.1:{port}/stream.m3u8").to_string()),
@@ -176,6 +185,12 @@ pub async fn watch_self(port: u16, state: State<'_, Mutex<AppState>>) -> Result<
         episode_num: None,
     };
     mpv::play(channel, false, None, state).await
+}
+
+// Android stub - restreaming not supported
+#[cfg(target_os = "android")]
+pub async fn watch_self(_port: u16, _state: State<'_, Mutex<AppState>>) -> Result<()> {
+    anyhow::bail!("Restreaming is not supported on Android")
 }
 
 pub fn share_restream(address: String, channel: Channel, path: String) -> Result<()> {

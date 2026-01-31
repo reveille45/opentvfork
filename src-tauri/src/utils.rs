@@ -34,7 +34,7 @@ const MACOS_POTENTIAL_PATHS: [&str; 3] = [
 const DEFAULT_USER_AGENT: &str = "Fred TV";
 
 static ILLEGAL_CHARS_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"[<>:"/\\|?*\x00-\x1F]"#).unwrap());
+    LazyLock::new(|| Regex::new(r#"[<>:"/\|?*\x00-\x1F]"#).unwrap());
 
 pub async fn refresh_source(source: Source) -> Result<()> {
     match source.source_type {
@@ -203,9 +203,14 @@ pub fn create_nuke_request() -> Result<()> {
 }
 
 fn get_nuke_path() -> Result<PathBuf> {
-    let path = ProjectDirs::from("dev", "fredol", "open-tv").context("project dir not found")?;
-    let path = path.cache_dir();
-    let path = path.join("nuke.txt");
+    // On Android, ProjectDirs::from() returns None, so we need a fallback
+    let cache_dir = if cfg!(target_os = "android") {
+        PathBuf::from("/data/data/dev.fredol.open_tv/cache")
+    } else {
+        let path = ProjectDirs::from("dev", "fredol", "open-tv").context("project dir not found")?;
+        path.cache_dir().to_owned()
+    };
+    let path = cache_dir.join("nuke.txt");
     Ok(path)
 }
 
@@ -214,12 +219,17 @@ pub fn check_nuke() -> Result<()> {
     if !path.exists() {
         return Ok(());
     }
-    std::fs::remove_file(path)?;
-    let path = ProjectDirs::from("dev", "fredol", "open-tv").context("project dir not found")?;
-    let path = path.data_dir();
-    let path = path.join(sql::DB_NAME);
-    if path.exists() {
-        std::fs::remove_file(path)?;
+    std::fs::remove_file(&path)?;
+    // On Android, ProjectDirs::from() returns None, so we need a fallback
+    let data_dir = if cfg!(target_os = "android") {
+        PathBuf::from("/data/data/dev.fredol.open_tv/files")
+    } else {
+        let path = ProjectDirs::from("dev", "fredol", "open-tv").context("project dir not found")?;
+        path.data_dir().to_owned()
+    };
+    let db_path = data_dir.join(sql::DB_NAME);
+    if db_path.exists() {
+        std::fs::remove_file(db_path)?;
     }
     Ok(())
 }

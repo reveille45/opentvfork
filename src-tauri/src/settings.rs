@@ -88,12 +88,18 @@ pub fn update_settings(settings: Settings) -> Result<()> {
 }
 
 pub fn get_default_record_path() -> Result<String> {
-    let user_dirs = UserDirs::new().context("Failed to get user dirs")?;
-    let mut path = user_dirs
-        .video_dir()
-        .context("No videos dir in ~, please set a recording path in Settings")?
-        .to_owned();
-    path.push("open-tv");
+    // On Android, UserDirs::new() returns None, so we need a fallback
+    let path = if cfg!(target_os = "android") {
+        std::path::PathBuf::from("/data/data/dev.fredol.open_tv/files/recordings")
+    } else {
+        let user_dirs = UserDirs::new().context("Failed to get user dirs")?;
+        let mut p = user_dirs
+            .video_dir()
+            .context("No videos dir in ~, please set a recording path in Settings")?
+            .to_owned();
+        p.push("open-tv");
+        p
+    };
     std::fs::create_dir_all(&path)?;
     Ok(path.to_string_lossy().to_string())
 }

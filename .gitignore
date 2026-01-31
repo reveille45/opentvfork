@@ -40,3 +40,39 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Claude Code temp directories
+tmpclaude-*-cwd
+tmpclaude-*/
+
+# Claude configuration
+.claude/
+CLAUDE.md
+
+# Build artifacts
+*.apk
+*.idsig
+*.keystore
+mpv.exe
+
+# Downloaded/temporary files
+*.crdownload
+*.csv
+*.pdf
+*.xlsx
+
+# Python
+*.py
+.venv/
+__pycache__/
+
+# Android generated (except what's needed)
+src-tauri/gen/android/.gradle/
+src-tauri/gen/android/build/
+src-tauri/gen/android/app/build/
+src-tauri/gen/android/local.properties
+!src-tauri/gen/android/app/src/main/assets/
+!src-tauri/gen/android/app/src/main/java/dev/fredol/open_tv/VideoPlayer.kt
+
+# Rust build artifacts in Android
+src-tauri/gen/android/app/src/main/jniLibs/

@@ -22,6 +22,7 @@ pub mod epg;
 pub mod log;
 pub mod m3u;
 pub mod media_type;
+#[cfg(not(target_os = "android"))]
 pub mod mpv;
 pub mod restream;
 pub mod settings;
@@ -43,6 +44,16 @@ static ENABLE_TRAY_ICON: LazyLock<bool> = LazyLock::new(|| {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Initialize database (critical for mobile where main() isn't called)
+    #[cfg(mobile)]
+    {
+        _ = utils::check_nuke()
+            .inspect_err(|e| log::log(format!("Failed to check nuke: {:?}", e)));
+        if let Err(e) = sql::create_or_initialize_db() {
+            log::log(format!("Failed to initialize database: {:?}", e));
+        }
+    }
+
     let builder = tauri::Builder::default();
 
     #[cfg(desktop)]
@@ -213,11 +224,23 @@ async fn play(
     channel: Channel,
     record: bool,
     record_path: Option<String>,
+    #[allow(unused_variables)]
     state: State<'_, Mutex<AppState>>,
 ) -> Result<(), String> {
-    mpv::play(channel, record, record_path, state)
-        .await
-        .map_err(map_err_frontend)
+    // On Android, playback is handled by the frontend using AndroidVideoPlayer JavaScript interface
+    #[cfg(target_os = "android")]
+    {
+        log::log(format!("Android play requested for: {} - {}", channel.name, channel.url.as_ref().unwrap_or(&"no url".to_string())));
+        return Ok(());
+    }
+
+    // On desktop, use MPV
+    #[cfg(not(target_os = "android"))]
+    {
+        mpv::play(channel, record, record_path, state)
+            .await
+            .map_err(map_err_frontend)
+    }
 }
 
 #[tauri::command(async)]
@@ -547,8 +570,22 @@ fn is_container() -> bool {
 }
 
 #[tauri::command]
-async fn cancel_play(source_id: i64, channel_id: i64, state: State<'_, Mutex<AppState>>) -> Result<(), String> {
-    mpv::cancel_play(source_id, channel_id, state)
-        .await
-        .map_err(map_err_frontend)
+async fn cancel_play(
+    #[allow(unused_variables)] source_id: i64,
+    #[allow(unused_variables)] channel_id: i64,
+    #[allow(unused_variables)] state: State<'_, Mutex<AppState>>
+) -> Result<(), String> {
+    // On Android, playback is handled externally - nothing to cancel
+    #[cfg(target_os = "android")]
+    {
+        return Ok(());
+    }
+
+    // On desktop, cancel MPV playback
+    #[cfg(not(target_os = "android"))]
+    {
+        mpv::cancel_play(source_id, channel_id, state)
+            .await
+            .map_err(map_err_frontend)
+    }
 }

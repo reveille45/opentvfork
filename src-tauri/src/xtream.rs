@@ -22,7 +22,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::str::FromStr;
-use tokio::join;
+// tokio::join removed - using sequential requests to respect IPTV provider connection limits
 use url::Url;
 
 const GET_LIVE_STREAMS: &str = "get_live_streams";
@@ -129,16 +129,23 @@ fn build_xtream_url(source: &mut Source) -> Result<Url> {
 }
 
 pub async fn get_xtream(mut source: Source, wipe: bool) -> Result<()> {
+    log::log("Starting Xtream fetch...".to_string());
     let url = build_xtream_url(&mut source)?;
     let user_agent = get_user_agent_from_source(&source)?;
-    let (live, live_cats, vods, vods_cats, series, series_cats) = join!(
-        get_xtream_http_data::<Vec<XtreamStream>>(url.clone(), GET_LIVE_STREAMS, &user_agent),
-        get_xtream_http_data::<Vec<XtreamCategory>>(url.clone(), GET_LIVE_STREAM_CATEGORIES, &user_agent),
-        get_xtream_http_data::<Vec<XtreamStream>>(url.clone(), GET_VODS, &user_agent),
-        get_xtream_http_data::<Vec<XtreamCategory>>(url.clone(), GET_VOD_CATEGORIES, &user_agent),
-        get_xtream_http_data::<Vec<XtreamStream>>(url.clone(), GET_SERIES, &user_agent),
-        get_xtream_http_data::<Vec<XtreamCategory>>(url.clone(), GET_SERIES_CATEGORIES, &user_agent),
-    );
+    log::log(format!("URL built: {}", url.host_str().unwrap_or("unknown")));
+
+    // Sequential fetching to respect IPTV provider connection limits
+    // Most providers block/throttle when multiple connections are opened simultaneously
+    let live_cats = get_xtream_http_data::<Vec<XtreamCategory>>(url.clone(), GET_LIVE_STREAM_CATEGORIES, &user_agent).await;
+    let live = get_xtream_http_data::<Vec<XtreamStream>>(url.clone(), GET_LIVE_STREAMS, &user_agent).await;
+
+    let vods_cats = get_xtream_http_data::<Vec<XtreamCategory>>(url.clone(), GET_VOD_CATEGORIES, &user_agent).await;
+    let vods = get_xtream_http_data::<Vec<XtreamStream>>(url.clone(), GET_VODS, &user_agent).await;
+
+    let series_cats = get_xtream_http_data::<Vec<XtreamCategory>>(url.clone(), GET_SERIES_CATEGORIES, &user_agent).await;
+    let series = get_xtream_http_data::<Vec<XtreamStream>>(url.clone(), GET_SERIES, &user_agent).await;
+
+    log::log("All HTTP requests completed, processing data...".to_string());
     let mut sql = sql::get_conn()?;
     let tx = sql.transaction()?;
     let mut channel_preserve: Vec<ChannelPreserve> = Vec::new();
@@ -188,9 +195,22 @@ async fn get_xtream_http_data<T>(mut url: Url, action: &str, user_agent: &String
 where
     T: serde::de::DeserializeOwned,
 {
-    let client = Client::builder().user_agent(user_agent).build()?;
+    // Add timeouts to prevent infinite hangs on Android
+    // connect_timeout: time to establish TCP connection
+    // timeout: total time for the entire request
+    // danger_accept_invalid_certs: handle sketchy IPTV provider certificates
+    let client = Client::builder()
+        .user_agent(user_agent)
+        .danger_accept_invalid_certs(true)
+        .connect_timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(60))
+        .build()?;
     url.query_pairs_mut().append_pair("action", action);
-    let data = client.get(url).send().await?.json::<T>().await?;
+    log::log(format!("Fetching: {}", action));
+    let response = client.get(url).send().await?;
+    log::log(format!("Got response for: {}, parsing JSON...", action));
+    let data = response.json::<T>().await?;
+    log::log(format!("Completed: {}", action));
     Ok(data)
 }
 

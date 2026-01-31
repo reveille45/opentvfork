@@ -62,11 +62,12 @@ body {
   }
 }
 
-/* Fallback for devices where env() isn't supported or returns 0 */
-@media screen and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+/* Force safe area fallback for small screens regardless of pointer type */
+/* This is needed because Android emulators/TVs may simulate a mouse pointer */
+@media screen and (max-width: 1024px) {
   :root {
-    /* Increased to 50px to clear larger notches on modern Android devices */
-    --safe-top: max(var(--safe-top), 50px);
+    /* Force 50px if env() is missing or returns 0 */
+    --safe-top: max(env(safe-area-inset-top, 0px), 50px) !important;
   }
 }
 

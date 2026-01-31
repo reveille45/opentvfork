@@ -34,10 +34,15 @@ fn init_logger() -> bool {
 }
 
 fn get_and_create_log_path() -> String {
-    let mut path = ProjectDirs::from("dev", "fredol", "open-tv")
-        .unwrap()
-        .cache_dir()
-        .to_owned();
+    // On Android, ProjectDirs::from() returns None, so we need a fallback
+    let mut path = if cfg!(target_os = "android") {
+        std::path::PathBuf::from("/data/data/dev.fredol.open_tv/cache")
+    } else {
+        ProjectDirs::from("dev", "fredol", "open-tv")
+            .unwrap()
+            .cache_dir()
+            .to_owned()
+    };
     path.push("logs");
     if !path.exists() {
         std::fs::create_dir_all(&path).unwrap();

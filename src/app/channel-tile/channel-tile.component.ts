@@ -120,7 +120,17 @@ export class ChannelTileComponent implements OnDestroy, AfterViewInit {
     this.starting = true;
     this.memory.SetFocus.next(this.id);
     try {
-      await invoke("play", { channel: this.channel, record: record, recordPath: file });
+      // Check if we're on Android and have the native video player interface
+      if (this.isAndroidWithVideoPlayer()) {
+        // Use Android's native video player with chooser
+        (window as any).AndroidVideoPlayer.openVideo(
+          this.channel?.url,
+          this.channel?.name || "Video"
+        );
+      } else {
+        // Use MPV on desktop
+        await invoke("play", { channel: this.channel, record: record, recordPath: file });
+      }
     } catch (e) {
       this.error.handleError(e);
     }
@@ -390,5 +400,13 @@ export class ChannelTileComponent implements OnDestroy, AfterViewInit {
 
   ngOnDestroy() {
     this.subscriptions.forEach((x) => x.unsubscribe());
+  }
+
+  /**
+   * Check if we're running on Android with the native video player interface available
+   */
+  private isAndroidWithVideoPlayer(): boolean {
+    return typeof (window as any).AndroidVideoPlayer !== "undefined" &&
+           typeof (window as any).AndroidVideoPlayer.openVideo === "function";
   }
 }
